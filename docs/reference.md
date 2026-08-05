@@ -205,6 +205,11 @@ For unmatched navigation, `router:navigation-failed` is published before `router
 | `ROUTER_ADAPTER_INITIALIZATION_FAILED` | Startup | Loading or creating the configured adapter fails. |
 | `ROUTER_ADAPTER_UNAVAILABLE` | Startup | The Browser History API is unavailable. |
 | `ROUTER_ADAPTER_OPERATION_FAILED` | Operational | A raw Browser History API or event-listener operation fails. Adapter errors consumed by public navigation methods are normalized to `ROUTER_NAVIGATION_FAILED`. |
+
+### Service Lifecycle Errors
+
+| Code | Type | Situation |
+|---|---|---|
 | `SERVICE_UNAVAILABLE` | Operational | A stale service reference is called after plugin deactivation. |
 
 All errors crossing an adapter or plugin boundary use the standard Bonyan error structure. Raw browser errors, stack traces, paths containing query data, and other sensitive details are not propagated.
