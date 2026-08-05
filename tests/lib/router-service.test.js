@@ -73,15 +73,24 @@ test('should_reject_malformed_patterns_without_partial_registration', async () =
 });
 
 test('should_reject_promise_when_register_routes_receives_malformed_pattern', async () => {
-  const { adapter, service } = createService('/valid');
+  const { adapter, events, service } = createService('/valid');
 
   const registration = service.registerRoutes(['/valid', '/invalid/']);
 
   assert.equal(registration instanceof Promise, true);
   await assert.rejects(registration, { code: 'ROUTER_MALFORMED_PATTERN' });
+  events.length = 0;
   await service.navigate('/valid');
+
   assert.equal(adapter.getCurrentPath(), '/not-found');
   assert.equal(service.getCurrentRoute().isNotFound, true);
+  assert.deepEqual(events, [
+    {
+      type: 'router:navigation-failed',
+      data: { path: '/valid', reason: 'ROUTE_NOT_FOUND' },
+    },
+    { type: 'router:changed', data: { path: '/not-found' } },
+  ]);
 });
 
 test('should_publish_changed_when_registration_resolves_not_found_route', async () => {
