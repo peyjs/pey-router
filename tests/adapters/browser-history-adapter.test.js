@@ -3,18 +3,54 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createBrowserHistoryAdapter } from '../../adapters/browser-history-adapter.js';
-import { ROUTER_ADAPTER_METHODS } from '../../lib/constants.js';
+import { defineRouterAdapterContract } from '../contracts/router-adapter-contract.js';
 
-function createBrowserHost() {
+function createBrowserHost(initialPath = '/accounts?tab=summary') {
   const listeners = new Map();
   const calls = [];
+  let entries = [initialPath];
+  let currentIndex = 0;
+
+  function updateLocation(rawPath) {
+    const queryIndex = rawPath.indexOf('?');
+    host.location.pathname = queryIndex === -1 ? rawPath : rawPath.slice(0, queryIndex);
+    host.location.search = queryIndex === -1 ? '' : rawPath.slice(queryIndex);
+  }
+
+  function emitPathChange() {
+    updateLocation(entries[currentIndex]);
+    listeners.get('popstate')?.();
+  }
+
   const host = {
-    location: { pathname: '/accounts', search: '?tab=summary' },
+    location: { pathname: '', search: '' },
     history: {
-      back: () => calls.push(['back']),
-      forward: () => calls.push(['forward']),
-      pushState: (...args) => calls.push(['pushState', ...args]),
-      replaceState: (...args) => calls.push(['replaceState', ...args]),
+      back: () => {
+        calls.push(['back']);
+        if (currentIndex > 0) {
+          currentIndex -= 1;
+          emitPathChange();
+        }
+      },
+      forward: () => {
+        calls.push(['forward']);
+        if (currentIndex < entries.length - 1) {
+          currentIndex += 1;
+          emitPathChange();
+        }
+      },
+      pushState: (...args) => {
+        calls.push(['pushState', ...args]);
+        entries = entries.slice(0, currentIndex + 1);
+        entries.push(args[2]);
+        currentIndex += 1;
+        updateLocation(args[2]);
+      },
+      replaceState: (...args) => {
+        calls.push(['replaceState', ...args]);
+        entries[currentIndex] = args[2];
+        updateLocation(args[2]);
+      },
     },
     addEventListener: (type, listener) => listeners.set(type, listener),
     removeEventListener: (type, listener) => {
@@ -27,14 +63,14 @@ function createBrowserHost() {
     listenerCount: (type) => (listeners.has(type) ? 1 : 0),
   };
 
+  updateLocation(initialPath);
   return host;
 }
 
-test('should_expose_all_router_adapter_methods_when_browser_host_is_valid', () => {
-  const adapter = createBrowserHistoryAdapter(createBrowserHost());
-
-  assert.deepEqual(Object.keys(adapter), ROUTER_ADAPTER_METHODS);
-});
+defineRouterAdapterContract(
+  'browser_history_adapter',
+  (initialPath) => createBrowserHistoryAdapter(createBrowserHost(initialPath)),
+);
 
 test('should_return_path_and_query_when_current_location_is_read', () => {
   const adapter = createBrowserHistoryAdapter(createBrowserHost());
@@ -107,61 +143,6 @@ test('should_notify_once_with_current_path_when_popstate_is_emitted', () => {
   host.emit('popstate');
 
   assert.deepEqual(paths, ['/accounts/42?tab=details']);
-});
-
-test('should_notify_once_when_go_back_results_in_path_change', () => {
-  const host = createBrowserHost();
-  host.history.back = () => {
-    host.location.pathname = '/previous';
-    host.location.search = '';
-    host.emit('popstate');
-  };
-  const adapter = createBrowserHistoryAdapter(host);
-  const paths = [];
-  adapter.onExternalChange((path) => paths.push(path));
-
-  adapter.goBack();
-
-  assert.deepEqual(paths, ['/previous']);
-});
-
-test('should_notify_once_when_go_forward_results_in_path_change', () => {
-  const host = createBrowserHost();
-  host.history.forward = () => {
-    host.location.pathname = '/next';
-    host.location.search = '?page=2';
-    host.emit('popstate');
-  };
-  const adapter = createBrowserHistoryAdapter(host);
-  const paths = [];
-  adapter.onExternalChange((path) => paths.push(path));
-
-  adapter.goForward();
-
-  assert.deepEqual(paths, ['/next?page=2']);
-});
-
-test('should_not_notify_when_go_back_is_noop', () => {
-  const host = createBrowserHost();
-  const adapter = createBrowserHistoryAdapter(host);
-  const paths = [];
-  adapter.onExternalChange((path) => paths.push(path));
-
-  adapter.goBack();
-
-  assert.deepEqual(paths, []);
-});
-
-test('should_not_notify_when_push_or_replace_is_called', () => {
-  const host = createBrowserHost();
-  const adapter = createBrowserHistoryAdapter(host);
-  const paths = [];
-  adapter.onExternalChange((path) => paths.push(path));
-
-  adapter.pushEntry('/pushed');
-  adapter.replaceEntry('/replaced');
-
-  assert.deepEqual(paths, []);
 });
 
 test('should_remove_popstate_listener_when_subscription_is_unsubscribed', () => {
