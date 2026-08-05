@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { ERROR_CODES } from '../../lib/constants.js';
+import { ERROR_CODES, NAVIGATION_FAILURE_REASONS } from '../../lib/constants.js';
 import { createRouterService } from '../../lib/router-service.js';
 import { createInMemoryRouterAdapter } from '../fakes/in-memory-router-adapter.js';
 
@@ -97,7 +97,7 @@ test('should_reject_promise_when_register_routes_receives_malformed_pattern', as
   assert.deepEqual(events, [
     {
       type: 'router:navigation-failed',
-      data: { path: '/valid', reason: 'ROUTE_NOT_FOUND' },
+      data: { path: '/valid', reason: NAVIGATION_FAILURE_REASONS.ROUTE_NOT_FOUND },
     },
     { type: 'router:changed', data: { path: '/not-found' } },
   ]);
@@ -194,7 +194,7 @@ test('should_fallback_and_publish_events_when_navigation_is_unmatched', async ()
   assert.deepEqual(events, [
     {
       type: 'router:navigation-failed',
-      data: { path: '/missing', reason: 'ROUTE_NOT_FOUND' },
+      data: { path: '/missing', reason: NAVIGATION_FAILURE_REASONS.ROUTE_NOT_FOUND },
     },
     { type: 'router:changed', data: { path: '/not-found' } },
   ]);
@@ -239,7 +239,7 @@ test('should_fallback_when_back_reaches_unmatched_entry', async () => {
   assert.deepEqual(events, [
     {
       type: 'router:navigation-failed',
-      data: { path: '/missing', reason: 'ROUTE_NOT_FOUND' },
+      data: { path: '/missing', reason: NAVIGATION_FAILURE_REASONS.ROUTE_NOT_FOUND },
     },
     { type: 'router:changed', data: { path: '/not-found' } },
   ]);
@@ -266,7 +266,7 @@ test('should_fallback_when_forward_reaches_unmatched_entry', async () => {
   assert.deepEqual(events, [
     {
       type: 'router:navigation-failed',
-      data: { path: '/missing', reason: 'ROUTE_NOT_FOUND' },
+      data: { path: '/missing', reason: NAVIGATION_FAILURE_REASONS.ROUTE_NOT_FOUND },
     },
     { type: 'router:changed', data: { path: '/not-found' } },
   ]);
@@ -291,7 +291,7 @@ test('should_fallback_when_external_path_is_outside_base_path', async () => {
   assert.deepEqual(events.slice(-2), [
     {
       type: 'router:navigation-failed',
-      data: { path: '/other/page', reason: 'ROUTE_NOT_FOUND' },
+      data: { path: '/other/page', reason: NAVIGATION_FAILURE_REASONS.ROUTE_NOT_FOUND },
     },
     { type: 'router:changed', data: { path: '/not-found' } },
   ]);
