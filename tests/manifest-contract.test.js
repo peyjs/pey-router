@@ -15,9 +15,27 @@ import {
 } from '../lib/constants.js';
 
 const manifest = JSON.parse(fs.readFileSync(new URL('../manifest.json', import.meta.url), 'utf8'));
+const requirements = fs.readFileSync(new URL('../imp/requirements.md', import.meta.url), 'utf8');
 const service = manifest.provides.find(({ name }) => name === SERVICE_NAME);
 const serviceMethodNames = service.methods.map(({ name }) => name);
 const manifestErrorCodes = new Set(service.methods.flatMap(({ errors }) => errors));
+
+function getNavigationFailureReasons() {
+  const lines = requirements.split('\n');
+  const headingIndex = lines.findIndex((line) => line.includes('`reason` values'));
+  const nextHeadingOffset = lines
+    .slice(headingIndex + 1)
+    .findIndex((line) => line.startsWith('**') || line.startsWith('## '));
+  const sectionEnd = nextHeadingOffset === -1
+    ? lines.length
+    : headingIndex + 1 + nextHeadingOffset;
+
+  return lines
+    .slice(headingIndex + 1, sectionEnd)
+    .filter((line) => line.startsWith('- `'))
+    .map((line) => line.match(/^- `([^`]+)`/)?.[1])
+    .filter(Boolean);
+}
 
 test('should_match_plugin_identity_when_manifest_contract_is_loaded', () => {
   assert.equal(manifest.name, PLUGIN_NAME);
@@ -84,5 +102,8 @@ test('should_match_adapter_contract_when_manifest_contract_is_loaded', () => {
 });
 
 test('should_match_navigation_failure_reason_when_manifest_contract_is_loaded', () => {
-  assert.equal(NAVIGATION_FAILURE_REASONS.ROUTE_NOT_FOUND, 'ROUTE_NOT_FOUND');
+  assert.deepEqual(
+    Object.values(NAVIGATION_FAILURE_REASONS),
+    getNavigationFailureReasons(),
+  );
 });
