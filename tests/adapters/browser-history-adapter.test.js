@@ -42,6 +42,24 @@ test('should_return_path_and_query_when_current_location_is_read', () => {
   assert.equal(adapter.getCurrentPath(), '/accounts?tab=summary');
 });
 
+test('should_convert_location_failure_to_standard_error_when_current_path_is_read', () => {
+  const host = createBrowserHost();
+  Object.defineProperty(host.location, 'pathname', {
+    get() {
+      throw new Error('token=secret-value');
+    },
+  });
+  const adapter = createBrowserHistoryAdapter(host);
+
+  assert.throws(
+    () => adapter.getCurrentPath(),
+    (error) => isAdapterOperationalError(error, 'ROUTER_ADAPTER_OPERATION_FAILED')
+      && error.message === 'Browser History operation failed'
+      && JSON.stringify(error).includes('secret-value') === false
+      && 'stack' in error === false,
+  );
+});
+
 test('should_push_raw_path_when_push_entry_is_called', () => {
   const host = createBrowserHost();
   const adapter = createBrowserHistoryAdapter(host);
