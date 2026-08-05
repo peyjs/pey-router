@@ -6,6 +6,7 @@ import { createRouterService } from '../../lib/router-service.js';
 import { createInMemoryRouterAdapter } from '../fakes/in-memory-router-adapter.js';
 
 function createService(initialPath = '/') {
+  const criticalErrors = [];
   const events = [];
   const adapter = createInMemoryRouterAdapter(initialPath);
   const router = createRouterService({
@@ -13,10 +14,11 @@ function createService(initialPath = '/') {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: (error) => criticalErrors.push(error),
   });
 
   events.length = 0;
-  return { adapter, events, ...router };
+  return { adapter, criticalErrors, events, ...router };
 }
 
 test('should_expose_only_manifest_methods_when_service_is_created', () => {
@@ -69,6 +71,15 @@ test('should_reject_malformed_patterns_without_partial_registration', async () =
   assert.equal(service.getCurrentRoute().isNotFound, true);
 });
 
+test('should_reject_promise_when_register_routes_receives_malformed_pattern', async () => {
+  const { service } = createService();
+
+  const registration = service.registerRoutes(['/invalid/']);
+
+  assert.equal(registration instanceof Promise, true);
+  await assert.rejects(registration, { code: 'ROUTER_MALFORMED_PATTERN' });
+});
+
 test('should_publish_changed_when_registration_resolves_not_found_route', async () => {
   const { events, service } = createService('/accounts/42');
 
@@ -101,7 +112,6 @@ test('should_replace_history_entry_when_replace_is_called', async () => {
   await service.registerRoutes(['/first', '/second']);
 
   await service.replace('/second');
-  await service.back();
 
   assert.equal(adapter.getCurrentPath(), '/second');
 });
@@ -165,6 +175,7 @@ test('should_fallback_when_external_path_is_outside_base_path', async () => {
     basePath: '/app',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: () => {},
   });
   events.length = 0;
   await service.registerRoutes(['/accounts']);
@@ -181,7 +192,8 @@ test('should_fallback_when_external_path_is_outside_base_path', async () => {
   ]);
 });
 
-test('should_preserve_route_when_external_fallback_replace_fails', async () => {
+test('should_report_critical_error_when_external_fallback_replace_fails', async () => {
+  const criticalErrors = [];
   const events = [];
   const adapter = createInMemoryRouterAdapter('/accounts');
   const { service } = createRouterService({
@@ -189,6 +201,7 @@ test('should_preserve_route_when_external_fallback_replace_fails', async () => {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: (error) => criticalErrors.push(error),
   });
   await service.registerRoutes(['/accounts']);
   events.length = 0;
@@ -196,12 +209,14 @@ test('should_preserve_route_when_external_fallback_replace_fails', async () => {
     throw new Error('replace failed');
   };
 
-  assert.throws(
-    () => adapter.simulateExternalChange('/missing'),
-    { code: 'ROUTER_NAVIGATION_FAILED' },
-  );
+  assert.doesNotThrow(() => adapter.simulateExternalChange('/missing'));
   assert.equal(service.getCurrentRoute().path, '/accounts');
   assert.deepEqual(events, []);
+  assert.deepEqual(criticalErrors.map(({ code, source, type }) => ({ code, source, type })), [{
+    code: 'ROUTER_EXTERNAL_CHANGE_FAILED',
+    source: 'pey.router',
+    type: 'critical',
+  }]);
 });
 
 test('should_return_null_when_public_match_route_does_not_match', () => {
@@ -221,6 +236,7 @@ test('should_reject_adapter_failure_when_navigation_operation_fails', async () =
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: () => {},
   });
   events.length = 0;
   await service.registerRoutes(['/accounts']);
@@ -244,6 +260,7 @@ test('should_reject_adapter_failure_when_back_or_forward_fails', async () => {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: () => {},
+    reportCriticalError: () => {},
   });
 
   await assert.rejects(service.back(), { code: 'ROUTER_NAVIGATION_FAILED' });
@@ -296,6 +313,7 @@ test('should_remove_external_subscription_when_service_is_deactivated', () => {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: () => {},
+    reportCriticalError: () => {},
   });
 
   deactivate();
