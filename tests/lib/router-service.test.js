@@ -60,6 +60,16 @@ test('should_accumulate_routes_when_register_routes_is_called_multiple_times', a
   assert.equal(adapter.getCurrentPath(), '/accounts/42');
 });
 
+test('should_ignore_duplicate_pattern_when_route_is_registered_multiple_times', async () => {
+  const { events, service } = createService();
+
+  await service.registerRoutes(['/accounts', '/accounts']);
+  events.length = 0;
+  await service.navigate('/accounts');
+
+  assert.deepEqual(events, [{ type: 'router:changed', data: { path: '/accounts' } }]);
+});
+
 test('should_reject_malformed_patterns_without_partial_registration', async () => {
   const { adapter, service } = createService('/accounts');
 
@@ -129,6 +139,16 @@ test('should_replace_history_entry_when_replace_is_called', async () => {
   assert.equal(adapter.getCurrentPath(), '/second');
 });
 
+test('should_resolve_undefined_when_async_void_methods_succeed', async () => {
+  const { service } = createService('/one');
+
+  assert.equal(await service.registerRoutes(['/one', '/two']), undefined);
+  assert.equal(await service.navigate('/two'), undefined);
+  assert.equal(await service.replace('/two'), undefined);
+  assert.equal(await service.back(), undefined);
+  assert.equal(await service.forward(), undefined);
+});
+
 test('should_fallback_and_publish_events_when_navigation_is_unmatched', async () => {
   const { adapter, events, service } = createService();
   await service.registerRoutes(['/accounts']);
@@ -178,6 +198,51 @@ test('should_resolve_back_and_forward_from_external_change_signal', async () => 
   await service.forward();
   assert.equal(service.getCurrentRoute().path, '/two');
   assert.deepEqual(events.map((event) => event.data.path), ['/one', '/two']);
+});
+
+test('should_fallback_when_back_reaches_unmatched_entry', async () => {
+  const { adapter, events, service } = createService('/missing');
+  await service.registerRoutes(['/known']);
+  await service.navigate('/known');
+  events.length = 0;
+
+  await service.back();
+
+  assert.equal(adapter.getCurrentPath(), '/not-found');
+  assert.deepEqual(events, [
+    {
+      type: 'router:navigation-failed',
+      data: { path: '/missing', reason: 'ROUTE_NOT_FOUND' },
+    },
+    { type: 'router:changed', data: { path: '/not-found' } },
+  ]);
+});
+
+test('should_fallback_when_forward_reaches_unmatched_entry', async () => {
+  const events = [];
+  const adapter = createInMemoryRouterAdapter('/known');
+  adapter.pushEntry('/missing');
+  adapter.goBack();
+  const { service } = createRouterService({
+    adapter,
+    basePath: '/',
+    notFoundPath: '/not-found',
+    publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: () => {},
+  });
+  await service.registerRoutes(['/known']);
+  events.length = 0;
+
+  await service.forward();
+
+  assert.equal(adapter.getCurrentPath(), '/not-found');
+  assert.deepEqual(events, [
+    {
+      type: 'router:navigation-failed',
+      data: { path: '/missing', reason: 'ROUTE_NOT_FOUND' },
+    },
+    { type: 'router:changed', data: { path: '/not-found' } },
+  ]);
 });
 
 test('should_fallback_when_external_path_is_outside_base_path', async () => {
@@ -255,6 +320,28 @@ test('should_reject_adapter_failure_when_navigation_operation_fails', async () =
   await service.registerRoutes(['/accounts']);
 
   await assert.rejects(service.navigate('/accounts'), {
+    code: 'ROUTER_NAVIGATION_FAILED',
+  });
+  assert.deepEqual(events, []);
+});
+
+test('should_reject_adapter_failure_without_events_when_replace_fails', async () => {
+  const events = [];
+  const adapter = createInMemoryRouterAdapter();
+  adapter.replaceEntry = () => {
+    throw new Error('history failed');
+  };
+  const { service } = createRouterService({
+    adapter,
+    basePath: '/',
+    notFoundPath: '/not-found',
+    publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: () => {},
+  });
+  await service.registerRoutes(['/accounts']);
+  events.length = 0;
+
+  await assert.rejects(service.replace('/accounts'), {
     code: 'ROUTER_NAVIGATION_FAILED',
   });
   assert.deepEqual(events, []);

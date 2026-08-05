@@ -149,6 +149,20 @@ test('should_reject_structured_startup_error_when_adapter_is_unknown', async () 
   await assert.doesNotReject(context.onShutdown());
 });
 
+test('should_reject_structured_error_when_router_config_is_invalid', async () => {
+  const entry = await loadEntry();
+  const host = createBrowserHost();
+  const { context } = createPrepareContext(host, { basePath: '' });
+
+  await assert.rejects(entry.prepare(context), {
+    code: 'ROUTER_MALFORMED_PATH',
+    source: 'pey.router',
+  });
+  assert.equal(host.listenerCount('popstate'), 0);
+  assert.doesNotThrow(() => context.onDeactivated());
+  await assert.doesNotReject(context.onShutdown());
+});
+
 test('should_remove_external_listener_when_deactivated_before_activation', async () => {
   const entry = await loadEntry();
   const host = createBrowserHost();
