@@ -45,17 +45,17 @@
         },
         {
           "name": "back",
-          "description": "Navigates to the previous entry in the navigation history, if any. No-op if there is no previous entry. If the entry being navigated to (including via an external event such as the browser's own back button) does not match any registered route, the same fallback logic as navigate/replace applies: internal redirect to notFoundPath, publishing router:navigation-failed followed by router:changed. This internal redirect always replaces the current history entry rather than adding a new one, so the browser's back/forward history stack is not corrupted by the fallback itself.",
+          "description": "Navigates to the previous entry in the navigation history, if any. No-op if there is no previous entry. If the entry being navigated to (including via an external event such as the browser's own back button) does not match any registered route, the same fallback logic as navigate/replace applies: internal redirect to notFoundPath, publishing router:navigation-failed followed by router:changed. This internal redirect always replaces the current history entry rather than adding a new one, so the browser's back/forward history stack is not corrupted by the fallback itself. If the underlying adapter reports an unexpected failure while moving backward, that failure is returned to the caller as a standard Bonyan error.",
           "params": [],
           "returns": "void",
-          "errors": []
+          "errors": ["ROUTER_NAVIGATION_FAILED"]
         },
         {
           "name": "forward",
-          "description": "Navigates to the next entry in the navigation history, if any. No-op if there is no next entry. Provided for symmetry with back; both are thin wrappers over the underlying navigation adapter's history stack. The same unmatched-path fallback described for back applies here identically, including that the fallback always replaces the current history entry rather than adding a new one.",
+          "description": "Navigates to the next entry in the navigation history, if any. No-op if there is no next entry. Provided for symmetry with back; both are thin wrappers over the underlying navigation adapter's history stack. The same unmatched-path fallback described for back applies here identically, including that the fallback always replaces the current history entry rather than adding a new one. If the underlying adapter reports an unexpected failure while moving forward, that failure is returned to the caller as a standard Bonyan error.",
           "params": [],
           "returns": "void",
-          "errors": []
+          "errors": ["ROUTER_NAVIGATION_FAILED"]
         },
         {
           "name": "getCurrentRoute",
