@@ -139,13 +139,40 @@ test('should_replace_history_entry_when_replace_is_called', async () => {
   assert.equal(adapter.getCurrentPath(), '/second');
 });
 
-test('should_resolve_undefined_when_async_void_methods_succeed', async () => {
+test('should_resolve_undefined_when_register_routes_succeeds', async () => {
   const { service } = createService('/one');
 
-  assert.equal(await service.registerRoutes(['/one', '/two']), undefined);
+  assert.equal(await service.registerRoutes(['/one']), undefined);
+});
+
+test('should_resolve_undefined_when_navigate_succeeds', async () => {
+  const { service } = createService('/one');
+  await service.registerRoutes(['/one', '/two']);
+
   assert.equal(await service.navigate('/two'), undefined);
+});
+
+test('should_resolve_undefined_when_replace_succeeds', async () => {
+  const { service } = createService('/one');
+  await service.registerRoutes(['/one', '/two']);
+
   assert.equal(await service.replace('/two'), undefined);
+});
+
+test('should_resolve_undefined_when_back_succeeds', async () => {
+  const { service } = createService('/one');
+  await service.registerRoutes(['/one', '/two']);
+  await service.navigate('/two');
+
   assert.equal(await service.back(), undefined);
+});
+
+test('should_resolve_undefined_when_forward_succeeds', async () => {
+  const { service } = createService('/one');
+  await service.registerRoutes(['/one', '/two']);
+  await service.navigate('/two');
+  await service.back();
+
   assert.equal(await service.forward(), undefined);
 });
 
