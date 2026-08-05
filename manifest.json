@@ -66,13 +66,13 @@
         },
         {
           "name": "matchRoute",
-          "description": "A standalone, general-purpose matching utility: checks whether a given path matches the given pattern and extracts path parameters, using this project's fixed pattern syntax (see the Route Pattern Syntax section in the companion type reference document). The pattern is supplied directly by the caller; this utility itself does not consult the registry built from registerRoutes. The plugin's own internal resolution logic (used by navigate, replace, back, and forward) is built on top of this same utility, iterating the registered patterns and calling it for each — but that internal resolution is a distinct, separate concern from this public method, which any caller may also use directly to test an arbitrary pattern against a path. Does not consider or return query string data.",
+          "description": "A standalone, general-purpose matching utility: checks whether a given path matches the given pattern and extracts path parameters, using this project's fixed pattern syntax (see the Route Pattern Syntax section in the companion type reference document). The pattern is supplied directly by the caller; this utility itself does not consult the registry built from registerRoutes. The plugin's own internal resolution logic (used by navigate, replace, back, and forward) is built on top of this same utility, iterating the registered patterns and calling it for each — but that internal resolution is a distinct, separate concern from this public method, which any caller may also use directly to test an arbitrary pattern against a path. This method is synchronous and performs no I/O. If the given path simply does not match a well-formed pattern, it returns null — that is an ordinary outcome, not an error. If the pattern itself does not follow this project's fixed pattern syntax, that is a caller mistake, not a routing outcome, and the method throws synchronously with the standard Bonyan error structure instead of returning null; a malformed pattern must never be silently treated as a non-match. Does not consider or return query string data.",
           "params": [
             { "name": "pattern", "type": "string, e.g. '/accounts/:id'" },
             { "name": "path", "type": "string" }
           ],
           "returns": "RouteMatch | null",
-          "errors": []
+          "errors": ["ROUTER_MALFORMED_PATTERN"]
         }
       ]
     }
