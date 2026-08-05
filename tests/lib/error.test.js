@@ -48,6 +48,10 @@ test('should_normalize_structured_error_when_adapter_operation_fails', () => {
   assert.equal(error.message, 'Router adapter operation failed');
   assert.equal(error.source, PLUGIN_NAME);
   assert.equal(error.type, 'operational');
+  assert.deepEqual(error.detail, {
+    adapterCode: adapterError.code,
+    adapterSource: adapterError.source,
+  });
 });
 
 test('should_remove_sensitive_data_when_raw_adapter_error_is_normalized', () => {
@@ -60,6 +64,22 @@ test('should_remove_sensitive_data_when_raw_adapter_error_is_normalized', () => 
   assert.equal(serializedError.includes(sensitiveValue), false);
   assert.equal('detail' in error, false);
   assert.equal('stack' in error, false);
+});
+
+test('should_remove_untrusted_metadata_when_adapter_error_is_not_structured', () => {
+  const adapterError = {
+    code: 'invalid code with token=secret-value',
+    message: 'Navigation failed at /account?token=secret-value',
+    source: 'invalid source',
+    type: 'operational',
+    timestamp: new Date().toISOString(),
+  };
+
+  const error = normalizeAdapterError(adapterError);
+  const serializedError = JSON.stringify(error);
+
+  assert.equal(serializedError.includes('secret-value'), false);
+  assert.equal('detail' in error, false);
 });
 
 test('should_use_requested_contract_when_adapter_error_is_normalized', () => {
