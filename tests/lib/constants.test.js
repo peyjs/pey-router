@@ -20,7 +20,7 @@ test('should_export_plugin_identity_when_constants_are_loaded', () => {
 });
 
 test('should_export_service_name_when_constants_are_loaded', () => {
-  assert.equal(SERVICE_NAME, manifest.provides[0].name);
+  assert.equal(service?.name, SERVICE_NAME);
 });
 
 test('should_match_declared_events_when_contract_constants_are_loaded', () => {
