@@ -19,6 +19,12 @@ test('should_extract_parameter_when_parameterized_route_matches', () => {
   });
 });
 
+test('should_accept_parameter_name_when_name_uses_no_defined_restriction', () => {
+  assert.deepEqual(matchRoute('/accounts/:account-id', '/accounts/42'), {
+    params: { 'account-id': '42' },
+  });
+});
+
 test('should_extract_multiple_parameters_when_parameterized_route_matches', () => {
   assert.deepEqual(matchRoute('/accounts/:accountId/items/:itemId', '/accounts/7/items/9'), {
     params: { accountId: '7', itemId: '9' },
@@ -58,7 +64,7 @@ test('should_throw_standard_error_when_pattern_is_empty', () => {
 });
 
 test('should_throw_standard_error_when_parameter_name_is_malformed', () => {
-  assert.throws(() => matchRoute('/accounts/:invalid-name', '/accounts/42'), isMalformedPatternError);
+  assert.throws(() => matchRoute('/accounts/:', '/accounts/42'), isMalformedPatternError);
 });
 
 test('should_throw_standard_error_when_parameter_name_is_duplicated', () => {
@@ -77,6 +83,10 @@ test('should_throw_standard_error_when_pattern_uses_unsupported_syntax', () => {
 
 test('should_throw_standard_error_when_pattern_contains_empty_segment', () => {
   assert.throws(() => validatePattern('/accounts//details'), isMalformedPatternError);
+});
+
+test('should_throw_standard_error_when_pattern_has_trailing_slash', () => {
+  assert.throws(() => validatePattern('/accounts/'), isMalformedPatternError);
 });
 
 function isMalformedPatternError(error) {
