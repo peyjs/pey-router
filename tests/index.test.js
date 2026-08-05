@@ -142,6 +142,11 @@ test('should_reject_structured_startup_error_when_adapter_is_unknown', async () 
   });
   assert.equal(typeof context.onDeactivated, 'function');
   assert.equal(typeof context.onShutdown, 'function');
+
+  assert.doesNotThrow(() => context.onDeactivated());
+  assert.doesNotThrow(() => context.onDeactivated());
+  await assert.doesNotReject(context.onShutdown());
+  await assert.doesNotReject(context.onShutdown());
 });
 
 test('should_remove_external_listener_when_deactivated_before_activation', async () => {
@@ -208,5 +213,9 @@ test('should_cleanup_subscription_when_initial_route_read_fails', async () => {
   await assert.rejects(entry.prepare(context), {
     code: 'ROUTER_ADAPTER_OPERATION_FAILED',
   });
+  assert.equal(host.listenerCount('popstate'), 0);
+
+  assert.doesNotThrow(() => context.onDeactivated());
+  await assert.doesNotReject(context.onShutdown());
   assert.equal(host.listenerCount('popstate'), 0);
 });
