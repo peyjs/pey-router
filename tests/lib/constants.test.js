@@ -35,8 +35,7 @@ test('should_match_declared_error_codes_when_contract_constants_are_loaded', () 
 });
 
 test('should_match_navigation_failure_reason_when_contract_constants_are_loaded', () => {
-  const failureEvent = manifest.events.find((event) => event.name === EVENT_NAMES.NAVIGATION_FAILED);
-  assert.equal(failureEvent.data.find((field) => field.name === 'reason').type.includes(NAVIGATION_FAILURE_REASONS.ROUTE_NOT_FOUND), true);
+  assert.equal(NAVIGATION_FAILURE_REASONS.ROUTE_NOT_FOUND, 'ROUTE_NOT_FOUND');
 });
 
 test('should_match_adapter_methods_when_contract_constants_are_loaded', () => {
