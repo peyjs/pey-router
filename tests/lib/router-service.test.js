@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { ERROR_CODES } from '../../lib/constants.js';
 import { createRouterService } from '../../lib/router-service.js';
 import { createInMemoryRouterAdapter } from '../fakes/in-memory-router-adapter.js';
 
@@ -72,12 +73,15 @@ test('should_reject_malformed_patterns_without_partial_registration', async () =
 });
 
 test('should_reject_promise_when_register_routes_receives_malformed_pattern', async () => {
-  const { service } = createService();
+  const { adapter, service } = createService('/valid');
 
-  const registration = service.registerRoutes(['/invalid/']);
+  const registration = service.registerRoutes(['/valid', '/invalid/']);
 
   assert.equal(registration instanceof Promise, true);
   await assert.rejects(registration, { code: 'ROUTER_MALFORMED_PATTERN' });
+  await service.navigate('/valid');
+  assert.equal(adapter.getCurrentPath(), '/not-found');
+  assert.equal(service.getCurrentRoute().isNotFound, true);
 });
 
 test('should_publish_changed_when_registration_resolves_not_found_route', async () => {
@@ -213,7 +217,7 @@ test('should_report_critical_error_when_external_fallback_replace_fails', async 
   assert.equal(service.getCurrentRoute().path, '/accounts');
   assert.deepEqual(events, []);
   assert.deepEqual(criticalErrors.map(({ code, source, type }) => ({ code, source, type })), [{
-    code: 'ROUTER_EXTERNAL_CHANGE_FAILED',
+    code: ERROR_CODES.EXTERNAL_CHANGE_FAILED,
     source: 'pey.router',
     type: 'critical',
   }]);

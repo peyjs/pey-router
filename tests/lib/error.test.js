@@ -5,7 +5,11 @@ import test from 'node:test';
 import { ERROR_CODES, PLUGIN_NAME } from '../../lib/constants.js';
 import { createRouterError, normalizeAdapterError } from '../../lib/error.js';
 
-const PLUGIN_ERROR_CODES = Object.values(ERROR_CODES);
+const PLUGIN_ERROR_CODES = [
+  ERROR_CODES.MALFORMED_PATH,
+  ERROR_CODES.MALFORMED_PATTERN,
+  ERROR_CODES.NAVIGATION_FAILED,
+];
 
 for (const errorCode of PLUGIN_ERROR_CODES) {
   test(`should_create_standard_error_when_code_is_${errorCode.toLowerCase()}`, () => {

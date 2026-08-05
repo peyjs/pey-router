@@ -29,9 +29,17 @@ test('should_match_declared_events_when_contract_constants_are_loaded', () => {
 });
 
 test('should_match_declared_error_codes_when_contract_constants_are_loaded', () => {
-  const errorCodes = Object.values(ERROR_CODES);
+  const errorCodes = [
+    ERROR_CODES.MALFORMED_PATH,
+    ERROR_CODES.MALFORMED_PATTERN,
+    ERROR_CODES.NAVIGATION_FAILED,
+  ];
   const declaredErrors = new Set(service.methods.flatMap((method) => method.errors));
   assert.deepEqual(new Set(errorCodes), declaredErrors);
+});
+
+test('should_export_runtime_critical_error_when_contract_constants_are_loaded', () => {
+  assert.equal(ERROR_CODES.EXTERNAL_CHANGE_FAILED, 'ROUTER_EXTERNAL_CHANGE_FAILED');
 });
 
 test('should_match_navigation_failure_reason_when_contract_constants_are_loaded', () => {
