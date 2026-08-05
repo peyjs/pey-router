@@ -53,11 +53,13 @@ test('should_parse_special_object_key_when_query_contains_proto_name', () => {
 });
 
 test('should_serialize_query_when_values_need_encoding', () => {
-  assert.equal(serializeQuery({ term: 'hello world', page: 2 }), '?term=hello+world&page=2');
+  assert.equal(serializeQuery({ term: 'hello world', page: '2' }), '?term=hello+world&page=2');
 });
 
-test('should_omit_undefined_value_when_query_is_serialized', () => {
-  assert.equal(serializeQuery({ tab: undefined, page: 2 }), '?page=2');
+test('should_throw_standard_error_when_query_value_is_not_string', () => {
+  for (const value of [2, true, null, undefined, ['details'], { tab: 'details' }]) {
+    assert.throws(() => serializeQuery({ tab: value }), isMalformedPathError);
+  }
 });
 
 test('should_return_empty_string_when_query_is_empty', () => {
@@ -72,12 +74,20 @@ test('should_return_root_when_raw_path_equals_base_path', () => {
   assert.equal(stripBasePath('/application', '/application'), '/');
 });
 
+test('should_return_root_with_query_when_raw_path_equals_base_path', () => {
+  assert.equal(stripBasePath('/application?tab=details', '/application'), '/?tab=details');
+});
+
 test('should_preserve_path_when_base_path_is_root', () => {
   assert.equal(stripBasePath('/accounts?tab=details', '/'), '/accounts?tab=details');
 });
 
 test('should_return_null_when_raw_path_is_outside_base_path', () => {
   assert.equal(stripBasePath('/application-two/accounts', '/application'), null);
+});
+
+test('should_return_null_when_raw_path_with_query_is_outside_base_path', () => {
+  assert.equal(stripBasePath('/other/page?tab=x', '/application'), null);
 });
 
 test('should_prepend_nested_base_path_when_path_is_relative_to_application', () => {
