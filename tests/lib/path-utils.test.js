@@ -53,11 +53,23 @@ test('should_parse_special_object_key_when_query_contains_proto_name', () => {
 });
 
 test('should_serialize_query_when_values_need_encoding', () => {
-  assert.equal(serializeQuery({ term: 'hello world', page: '2' }), '?term=hello+world&page=2');
+  assert.equal(serializeQuery({ term: 'hello world' }), '?term=hello+world');
 });
 
-test('should_throw_standard_error_when_query_value_is_not_string', () => {
-  for (const value of [2, true, null, undefined, ['details'], { tab: 'details' }]) {
+test('should_serialize_number_when_query_contains_number', () => {
+  assert.equal(serializeQuery({ page: 2 }), '?page=2');
+});
+
+test('should_serialize_boolean_when_query_contains_boolean', () => {
+  assert.equal(serializeQuery({ archived: false, active: true }), '?archived=false&active=true');
+});
+
+test('should_omit_value_when_query_contains_undefined', () => {
+  assert.equal(serializeQuery({ tab: undefined, page: 2 }), '?page=2');
+});
+
+test('should_throw_standard_error_when_query_value_is_complex', () => {
+  for (const value of [null, ['details'], { tab: 'details' }]) {
     assert.throws(() => serializeQuery({ tab: value }), isMalformedPathError);
   }
 });
