@@ -31,7 +31,7 @@
             { "name": "options", "type": "NavigateOptions : { query?: object }" }
           ],
           "returns": "void",
-          "errors": ["ROUTER_MALFORMED_PATH", "ROUTER_NAVIGATION_FAILED"]
+          "errors": ["ROUTER_MALFORMED_PATH", "ROUTER_MALFORMED_QUERY", "ROUTER_NAVIGATION_FAILED"]
         },
         {
           "name": "replace",
@@ -41,7 +41,7 @@
             { "name": "options", "type": "NavigateOptions : { query?: object }" }
           ],
           "returns": "void",
-          "errors": ["ROUTER_MALFORMED_PATH", "ROUTER_NAVIGATION_FAILED"]
+          "errors": ["ROUTER_MALFORMED_PATH", "ROUTER_MALFORMED_QUERY", "ROUTER_NAVIGATION_FAILED"]
         },
         {
           "name": "back",
