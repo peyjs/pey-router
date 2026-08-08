@@ -214,7 +214,7 @@ test('should_log_and_contain_failure_when_external_fallback_fails', async () => 
   assert.equal(host.listenerCount('popstate'), 1);
 });
 
-test('should_report_critical_error_when_external_subscription_fails_during_prepare', async () => {
+test('should_reject_structured_startup_error_without_critical_when_subscription_fails_during_prepare', async () => {
   const entry = await loadEntry();
   const host = createBrowserHost();
   host.addEventListener = () => {
@@ -226,9 +226,7 @@ test('should_report_critical_error_when_external_subscription_fails_during_prepa
     code: 'ROUTER_ADAPTER_OPERATION_FAILED',
     source: 'pey.browser-history',
   });
-  assert.equal(criticalErrors.length, 1);
-  assert.equal(criticalErrors[0].code, 'ROUTER_EXTERNAL_CHANGE_FAILED');
-  assert.equal(criticalErrors[0].type, 'critical');
+  assert.deepEqual(criticalErrors, []);
   assert.doesNotThrow(() => context.onDeactivated());
   await assert.doesNotReject(context.onShutdown());
 });

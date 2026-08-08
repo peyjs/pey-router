@@ -329,7 +329,7 @@ test('should_log_and_contain_failure_when_external_fallback_replace_fails', asyn
   assert.equal(loggedMessages.length, 1);
 });
 
-test('should_report_critical_error_when_external_change_indicates_adapter_loss', async () => {
+test('should_report_critical_error_when_external_change_indicates_fatal_adapter_failure', async () => {
   const criticalErrors = [];
   const events = [];
   const adapter = createInMemoryRouterAdapter('/accounts');
@@ -344,11 +344,12 @@ test('should_report_critical_error_when_external_change_indicates_adapter_loss',
   events.length = 0;
   adapter.replaceEntry = () => {
     throw {
-      code: 'ROUTER_ADAPTER_CONNECTION_LOST',
-      message: 'connection lost',
+      code: 'ROUTER_ADAPTER_OPERATION_FAILED',
+      message: 'browser context destroyed',
       source: 'pey.browser-history',
       type: 'operational',
       timestamp: new Date().toISOString(),
+      detail: { fatal: true },
     };
   };
 
@@ -362,7 +363,7 @@ test('should_report_critical_error_when_external_change_indicates_adapter_loss',
   }]);
 });
 
-test('should_report_critical_error_when_initial_external_subscription_fails', () => {
+test('should_reject_startup_error_without_critical_when_initial_external_subscription_fails', () => {
   const criticalErrors = [];
   const adapter = createInMemoryRouterAdapter();
   adapter.onExternalChange = () => {
@@ -384,11 +385,7 @@ test('should_report_critical_error_when_initial_external_subscription_fails', ()
   }), {
     code: 'ROUTER_ADAPTER_UNAVAILABLE',
   });
-  assert.deepEqual(criticalErrors.map(({ code, source, type }) => ({ code, source, type })), [{
-    code: ERROR_CODES.EXTERNAL_CHANGE_FAILED,
-    source: 'pey.router',
-    type: 'critical',
-  }]);
+  assert.deepEqual(criticalErrors, []);
 });
 
 test('should_return_null_when_public_match_route_does_not_match', () => {

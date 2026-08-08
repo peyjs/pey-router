@@ -2,7 +2,6 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import test from 'node:test';
 import {
-  ADAPTER_LOSS_CODES,
   ERROR_CODES,
   EVENT_NAMES,
   NAVIGATION_FAILURE_REASONS,
@@ -48,11 +47,6 @@ test('should_keep_malformed_path_and_query_distinct_when_contract_constants_are_
 
 test('should_export_runtime_critical_error_when_contract_constants_are_loaded', () => {
   assert.equal(ERROR_CODES.EXTERNAL_CHANGE_FAILED, 'ROUTER_EXTERNAL_CHANGE_FAILED');
-});
-
-test('should_export_adapter_loss_codes_when_contract_constants_are_loaded', () => {
-  assert.equal(ADAPTER_LOSS_CODES.includes('ROUTER_ADAPTER_UNAVAILABLE'), true);
-  assert.equal(ADAPTER_LOSS_CODES.includes('ROUTER_ADAPTER_CONNECTION_LOST'), true);
 });
 
 test('should_match_navigation_failure_reason_when_contract_constants_are_loaded', () => {
