@@ -68,6 +68,26 @@ test('should_normalize_structured_error_when_adapter_operation_fails', () => {
   });
 });
 
+test('should_preserve_fatal_flag_when_structured_adapter_error_is_normalized', () => {
+  const adapterError = {
+    code: 'BROWSER_HISTORY_DESTROYED',
+    message: 'Browser history context destroyed',
+    source: 'pey.browser-history',
+    type: 'operational',
+    timestamp: new Date().toISOString(),
+    detail: { fatal: true },
+  };
+
+  const error = normalizeAdapterError(adapterError);
+
+  assert.equal(error.code, ERROR_CODES.NAVIGATION_FAILED);
+  assert.deepEqual(error.detail, {
+    adapterCode: adapterError.code,
+    adapterSource: adapterError.source,
+    fatal: true,
+  });
+});
+
 test('should_remove_sensitive_data_when_raw_adapter_error_is_normalized', () => {
   const sensitiveValue = 'token=secret-value';
   const adapterError = new Error(`Navigation failed at /account?${sensitiveValue}`);

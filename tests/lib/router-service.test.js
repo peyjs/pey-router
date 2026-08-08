@@ -329,7 +329,7 @@ test('should_log_and_contain_failure_when_external_fallback_replace_fails', asyn
   assert.equal(loggedMessages.length, 1);
 });
 
-test('should_report_critical_error_when_external_change_indicates_fatal_adapter_failure', async () => {
+test('should_report_critical_error_without_operational_log_when_external_change_indicates_fatal_adapter_failure', async () => {
   const criticalErrors = [];
   const events = [];
   const adapter = createInMemoryRouterAdapter('/accounts');
@@ -353,9 +353,18 @@ test('should_report_critical_error_when_external_change_indicates_fatal_adapter_
     };
   };
 
-  assert.doesNotThrow(() => adapter.simulateExternalChange('/missing'));
+  const loggedMessages = [];
+  const originalError = console.error;
+  console.error = (message) => loggedMessages.push(message);
+  try {
+    assert.doesNotThrow(() => adapter.simulateExternalChange('/missing'));
+  } finally {
+    console.error = originalError;
+  }
+
   assert.equal(service.getCurrentRoute().path, '/accounts');
   assert.deepEqual(events, []);
+  assert.deepEqual(loggedMessages, []);
   assert.deepEqual(criticalErrors.map(({ code, source, type }) => ({ code, source, type })), [{
     code: ERROR_CODES.EXTERNAL_CHANGE_FAILED,
     source: 'pey.router',
