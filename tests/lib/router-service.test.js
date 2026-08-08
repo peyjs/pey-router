@@ -7,6 +7,7 @@ import { createRouterService } from '../../lib/router-service.js';
 import { createInMemoryRouterAdapter } from '../fakes/in-memory-router-adapter.js';
 
 function createService(initialPath = '/') {
+  const criticalErrors = [];
   const events = [];
   const adapter = createInMemoryRouterAdapter(initialPath);
   const router = createRouterService({
@@ -14,10 +15,11 @@ function createService(initialPath = '/') {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: (error) => criticalErrors.push(error),
   });
 
   events.length = 0;
-  return { adapter, events, ...router };
+  return { adapter, criticalErrors, events, ...router };
 }
 
 test('should_expose_only_manifest_methods_when_service_is_created', () => {
@@ -253,6 +255,7 @@ test('should_fallback_when_forward_reaches_unmatched_entry', async () => {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: () => {},
   });
   await service.registerRoutes(['/known']);
   events.length = 0;
@@ -277,6 +280,7 @@ test('should_fallback_when_external_path_is_outside_base_path', async () => {
     basePath: '/app',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: () => {},
   });
   events.length = 0;
   await service.registerRoutes(['/accounts']);
@@ -293,7 +297,8 @@ test('should_fallback_when_external_path_is_outside_base_path', async () => {
   ]);
 });
 
-test('should_contain_failure_when_external_fallback_replace_fails', async () => {
+test('should_log_and_contain_failure_when_external_fallback_replace_fails', async () => {
+  const criticalErrors = [];
   const events = [];
   const adapter = createInMemoryRouterAdapter('/accounts');
   const { service } = createRouterService({
@@ -301,6 +306,7 @@ test('should_contain_failure_when_external_fallback_replace_fails', async () => 
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: (error) => criticalErrors.push(error),
   });
   await service.registerRoutes(['/accounts']);
   events.length = 0;
@@ -308,9 +314,81 @@ test('should_contain_failure_when_external_fallback_replace_fails', async () => 
     throw new Error('replace failed');
   };
 
+  const loggedMessages = [];
+  const originalError = console.error;
+  console.error = (message) => loggedMessages.push(message);
+  try {
+    assert.doesNotThrow(() => adapter.simulateExternalChange('/missing'));
+  } finally {
+    console.error = originalError;
+  }
+
+  assert.equal(service.getCurrentRoute().path, '/accounts');
+  assert.deepEqual(events, []);
+  assert.deepEqual(criticalErrors, []);
+  assert.equal(loggedMessages.length, 1);
+});
+
+test('should_report_critical_error_when_external_change_indicates_adapter_loss', async () => {
+  const criticalErrors = [];
+  const events = [];
+  const adapter = createInMemoryRouterAdapter('/accounts');
+  const { service } = createRouterService({
+    adapter,
+    basePath: '/',
+    notFoundPath: '/not-found',
+    publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: (error) => criticalErrors.push(error),
+  });
+  await service.registerRoutes(['/accounts']);
+  events.length = 0;
+  adapter.replaceEntry = () => {
+    throw {
+      code: 'ROUTER_ADAPTER_CONNECTION_LOST',
+      message: 'connection lost',
+      source: 'pey.browser-history',
+      type: 'operational',
+      timestamp: new Date().toISOString(),
+    };
+  };
+
   assert.doesNotThrow(() => adapter.simulateExternalChange('/missing'));
   assert.equal(service.getCurrentRoute().path, '/accounts');
   assert.deepEqual(events, []);
+  assert.deepEqual(criticalErrors.map(({ code, source, type }) => ({ code, source, type })), [{
+    code: ERROR_CODES.EXTERNAL_CHANGE_FAILED,
+    source: 'pey.router',
+    type: 'critical',
+  }]);
+});
+
+test('should_report_critical_error_when_initial_external_subscription_fails', () => {
+  const criticalErrors = [];
+  const adapter = createInMemoryRouterAdapter();
+  adapter.onExternalChange = () => {
+    throw {
+      code: 'ROUTER_ADAPTER_UNAVAILABLE',
+      message: 'no observation channel',
+      source: 'pey.browser-history',
+      type: 'startup',
+      timestamp: new Date().toISOString(),
+    };
+  };
+
+  assert.throws(() => createRouterService({
+    adapter,
+    basePath: '/',
+    notFoundPath: '/not-found',
+    publish: () => {},
+    reportCriticalError: (error) => criticalErrors.push(error),
+  }), {
+    code: 'ROUTER_ADAPTER_UNAVAILABLE',
+  });
+  assert.deepEqual(criticalErrors.map(({ code, source, type }) => ({ code, source, type })), [{
+    code: ERROR_CODES.EXTERNAL_CHANGE_FAILED,
+    source: 'pey.router',
+    type: 'critical',
+  }]);
 });
 
 test('should_return_null_when_public_match_route_does_not_match', () => {
@@ -330,6 +408,7 @@ test('should_reject_adapter_failure_when_navigation_operation_fails', async () =
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: () => {},
   });
   events.length = 0;
   await service.registerRoutes(['/accounts']);
@@ -351,6 +430,7 @@ test('should_reject_adapter_failure_without_events_when_replace_fails', async ()
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
+    reportCriticalError: () => {},
   });
   await service.registerRoutes(['/accounts']);
   events.length = 0;
@@ -374,6 +454,7 @@ test('should_reject_adapter_failure_when_back_or_forward_fails', async () => {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: () => {},
+    reportCriticalError: () => {},
   });
 
   await assert.rejects(service.back(), { code: 'ROUTER_NAVIGATION_FAILED' });
@@ -449,6 +530,7 @@ test('should_remove_external_subscription_when_service_is_deactivated', () => {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: () => {},
+    reportCriticalError: () => {},
   });
 
   deactivate();

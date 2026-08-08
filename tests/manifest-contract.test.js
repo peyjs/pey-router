@@ -55,6 +55,7 @@ test('should_match_service_error_codes_when_manifest_contract_is_loaded', () => 
     ERROR_CODES.NAVIGATION_FAILED,
   ]));
   assert.equal(ERROR_CODES.MALFORMED_QUERY, 'ROUTER_MALFORMED_QUERY');
+  assert.equal(ERROR_CODES.EXTERNAL_CHANGE_FAILED, 'ROUTER_EXTERNAL_CHANGE_FAILED');
 });
 
 test('should_match_events_when_manifest_contract_is_loaded', () => {

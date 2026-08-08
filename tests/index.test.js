@@ -196,7 +196,7 @@ test('should_reject_stale_service_calls_when_plugin_is_deactivated', async () =>
   assert.throws(() => service.getCurrentRoute(), { code: 'SERVICE_UNAVAILABLE' });
 });
 
-test('should_contain_failure_when_external_fallback_fails', async () => {
+test('should_log_and_contain_failure_when_external_fallback_fails', async () => {
   const entry = await loadEntry();
   const host = createBrowserHost('/accounts');
   const { context, criticalErrors } = createPrepareContext(host);
@@ -212,6 +212,25 @@ test('should_contain_failure_when_external_fallback_fails', async () => {
   assert.deepEqual(criticalErrors, []);
   assert.equal(service.getCurrentRoute().path, '/accounts');
   assert.equal(host.listenerCount('popstate'), 1);
+});
+
+test('should_report_critical_error_when_external_subscription_fails_during_prepare', async () => {
+  const entry = await loadEntry();
+  const host = createBrowserHost();
+  host.addEventListener = () => {
+    throw new Error('no listener support');
+  };
+  const { context, criticalErrors } = createPrepareContext(host);
+
+  await assert.rejects(entry.prepare(context), {
+    code: 'ROUTER_ADAPTER_OPERATION_FAILED',
+    source: 'pey.browser-history',
+  });
+  assert.equal(criticalErrors.length, 1);
+  assert.equal(criticalErrors[0].code, 'ROUTER_EXTERNAL_CHANGE_FAILED');
+  assert.equal(criticalErrors[0].type, 'critical');
+  assert.doesNotThrow(() => context.onDeactivated());
+  await assert.doesNotReject(context.onShutdown());
 });
 
 test('should_cleanup_subscription_when_initial_route_read_fails', async () => {
