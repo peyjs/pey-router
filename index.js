@@ -27,7 +27,6 @@ export async function prepare(prepareContext) {
     basePath: prepareContext.config.basePath,
     notFoundPath: prepareContext.config.notFoundPath,
     publish: (type, data) => prepareContext.events.publish(type, data),
-    reportCriticalError: prepareContext.reportCriticalError,
   });
 
   lifecycleControls = router;

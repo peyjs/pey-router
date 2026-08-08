@@ -196,7 +196,7 @@ test('should_reject_stale_service_calls_when_plugin_is_deactivated', async () =>
   assert.throws(() => service.getCurrentRoute(), { code: 'SERVICE_UNAVAILABLE' });
 });
 
-test('should_report_critical_error_when_external_fallback_fails', async () => {
+test('should_contain_failure_when_external_fallback_fails', async () => {
   const entry = await loadEntry();
   const host = createBrowserHost('/accounts');
   const { context, criticalErrors } = createPrepareContext(host);
@@ -209,9 +209,9 @@ test('should_report_critical_error_when_external_fallback_fails', async () => {
   setLocation(host.location, '/missing');
   assert.doesNotThrow(() => host.emit('popstate'));
 
-  assert.equal(criticalErrors.length, 1);
-  assert.equal(criticalErrors[0].code, 'ROUTER_EXTERNAL_CHANGE_FAILED');
-  assert.equal(criticalErrors[0].type, 'critical');
+  assert.deepEqual(criticalErrors, []);
+  assert.equal(service.getCurrentRoute().path, '/accounts');
+  assert.equal(host.listenerCount('popstate'), 1);
 });
 
 test('should_cleanup_subscription_when_initial_route_read_fails', async () => {

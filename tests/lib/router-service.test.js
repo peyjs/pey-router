@@ -7,7 +7,6 @@ import { createRouterService } from '../../lib/router-service.js';
 import { createInMemoryRouterAdapter } from '../fakes/in-memory-router-adapter.js';
 
 function createService(initialPath = '/') {
-  const criticalErrors = [];
   const events = [];
   const adapter = createInMemoryRouterAdapter(initialPath);
   const router = createRouterService({
@@ -15,11 +14,10 @@ function createService(initialPath = '/') {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
-    reportCriticalError: (error) => criticalErrors.push(error),
   });
 
   events.length = 0;
-  return { adapter, criticalErrors, events, ...router };
+  return { adapter, events, ...router };
 }
 
 test('should_expose_only_manifest_methods_when_service_is_created', () => {
@@ -255,7 +253,6 @@ test('should_fallback_when_forward_reaches_unmatched_entry', async () => {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
-    reportCriticalError: () => {},
   });
   await service.registerRoutes(['/known']);
   events.length = 0;
@@ -280,7 +277,6 @@ test('should_fallback_when_external_path_is_outside_base_path', async () => {
     basePath: '/app',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
-    reportCriticalError: () => {},
   });
   events.length = 0;
   await service.registerRoutes(['/accounts']);
@@ -297,8 +293,7 @@ test('should_fallback_when_external_path_is_outside_base_path', async () => {
   ]);
 });
 
-test('should_report_critical_error_when_external_fallback_replace_fails', async () => {
-  const criticalErrors = [];
+test('should_contain_failure_when_external_fallback_replace_fails', async () => {
   const events = [];
   const adapter = createInMemoryRouterAdapter('/accounts');
   const { service } = createRouterService({
@@ -306,7 +301,6 @@ test('should_report_critical_error_when_external_fallback_replace_fails', async 
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
-    reportCriticalError: (error) => criticalErrors.push(error),
   });
   await service.registerRoutes(['/accounts']);
   events.length = 0;
@@ -317,11 +311,6 @@ test('should_report_critical_error_when_external_fallback_replace_fails', async 
   assert.doesNotThrow(() => adapter.simulateExternalChange('/missing'));
   assert.equal(service.getCurrentRoute().path, '/accounts');
   assert.deepEqual(events, []);
-  assert.deepEqual(criticalErrors.map(({ code, source, type }) => ({ code, source, type })), [{
-    code: ERROR_CODES.EXTERNAL_CHANGE_FAILED,
-    source: 'pey.router',
-    type: 'critical',
-  }]);
 });
 
 test('should_return_null_when_public_match_route_does_not_match', () => {
@@ -341,7 +330,6 @@ test('should_reject_adapter_failure_when_navigation_operation_fails', async () =
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
-    reportCriticalError: () => {},
   });
   events.length = 0;
   await service.registerRoutes(['/accounts']);
@@ -363,7 +351,6 @@ test('should_reject_adapter_failure_without_events_when_replace_fails', async ()
     basePath: '/',
     notFoundPath: '/not-found',
     publish: (type, data) => events.push({ type, data }),
-    reportCriticalError: () => {},
   });
   await service.registerRoutes(['/accounts']);
   events.length = 0;
@@ -387,21 +374,43 @@ test('should_reject_adapter_failure_when_back_or_forward_fails', async () => {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: () => {},
-    reportCriticalError: () => {},
   });
 
   await assert.rejects(service.back(), { code: 'ROUTER_NAVIGATION_FAILED' });
   await assert.rejects(service.forward(), { code: 'ROUTER_NAVIGATION_FAILED' });
 });
 
-test('should_reject_malformed_path_when_query_value_is_invalid', async () => {
+test('should_reject_malformed_query_when_query_value_is_invalid', async () => {
   const { service } = createService();
   await service.registerRoutes(['/accounts']);
 
   await assert.rejects(
     service.navigate('/accounts', { query: { filter: null } }),
-    { code: 'ROUTER_MALFORMED_PATH' },
+    { code: 'ROUTER_MALFORMED_QUERY' },
   );
+});
+
+test('should_reject_malformed_query_when_replace_receives_invalid_query', async () => {
+  const { service } = createService();
+  await service.registerRoutes(['/accounts']);
+
+  await assert.rejects(
+    service.replace('/accounts', { query: { filter: ['one'] } }),
+    { code: 'ROUTER_MALFORMED_QUERY' },
+  );
+});
+
+test('should_not_publish_events_when_query_validation_fails', async () => {
+  const { events, service } = createService();
+  await service.registerRoutes(['/accounts']);
+  events.length = 0;
+
+  await assert.rejects(
+    service.navigate('/accounts', { query: { filter: { nested: true } } }),
+    { code: 'ROUTER_MALFORMED_QUERY' },
+  );
+
+  assert.deepEqual(events, []);
 });
 
 test('should_return_route_copy_when_current_route_is_requested', async () => {
@@ -440,7 +449,6 @@ test('should_remove_external_subscription_when_service_is_deactivated', () => {
     basePath: '/',
     notFoundPath: '/not-found',
     publish: () => {},
-    reportCriticalError: () => {},
   });
 
   deactivate();

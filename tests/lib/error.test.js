@@ -8,6 +8,7 @@ import { createRouterError, normalizeAdapterError } from '../../lib/error.js';
 const PLUGIN_ERROR_CODES = [
   ERROR_CODES.MALFORMED_PATH,
   ERROR_CODES.MALFORMED_PATTERN,
+  ERROR_CODES.MALFORMED_QUERY,
   ERROR_CODES.NAVIGATION_FAILED,
 ];
 
@@ -28,6 +29,15 @@ test('should_preserve_requested_type_when_router_error_is_created', () => {
   const error = createRouterError('ROUTER_STARTUP_FAILED', 'Router startup failed', 'startup');
 
   assert.equal(error.type, 'startup');
+});
+
+test('should_keep_malformed_path_and_query_distinct_when_errors_are_created', () => {
+  const pathError = createRouterError(ERROR_CODES.MALFORMED_PATH, 'Path is not valid');
+  const queryError = createRouterError(ERROR_CODES.MALFORMED_QUERY, 'Query value is not valid');
+
+  assert.equal(pathError.code, ERROR_CODES.MALFORMED_PATH);
+  assert.equal(queryError.code, ERROR_CODES.MALFORMED_QUERY);
+  assert.notEqual(pathError.code, queryError.code);
 });
 
 test('should_reject_unsupported_type_when_router_error_is_created', () => {

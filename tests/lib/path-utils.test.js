@@ -70,7 +70,7 @@ test('should_omit_value_when_query_contains_undefined', () => {
 
 test('should_throw_standard_error_when_query_value_is_complex', () => {
   for (const value of [null, ['details'], { tab: 'details' }]) {
-    assert.throws(() => serializeQuery({ tab: value }), isMalformedPathError);
+    assert.throws(() => serializeQuery({ tab: value }), isMalformedQueryError);
   }
 });
 
@@ -127,11 +127,18 @@ test('should_throw_standard_error_when_path_encoding_is_invalid', () => {
 });
 
 test('should_throw_standard_error_when_query_input_is_not_object', () => {
-  assert.throws(() => serializeQuery('tab=details'), isMalformedPathError);
+  assert.throws(() => serializeQuery('tab=details'), isMalformedQueryError);
 });
 
 function isMalformedPathError(error) {
   return error.code === ERROR_CODES.MALFORMED_PATH
+    && error.source === PLUGIN_NAME
+    && error.type === 'operational'
+    && Number.isNaN(Date.parse(error.timestamp)) === false;
+}
+
+function isMalformedQueryError(error) {
+  return error.code === ERROR_CODES.MALFORMED_QUERY
     && error.source === PLUGIN_NAME
     && error.type === 'operational'
     && Number.isNaN(Date.parse(error.timestamp)) === false;
