@@ -105,7 +105,7 @@ Before application plugins finish registering routes, the current route may have
 
 ### `matchRoute`
 
-Synchronously matches an arbitrary well-formed pattern without consulting the registered pattern set. Query data is ignored.
+Synchronously matches an arbitrary well-formed pattern without consulting the registered pattern set. Query data is ignored. Unlike every other service method, which is Promise-based, `matchRoute` is the sole synchronous exception in this service's API.
 
 ```js
 const match = router.matchRoute('/accounts/:id', '/accounts/42?tab=details');
@@ -125,7 +125,7 @@ NavigateOptions {
 }
 ```
 
-`null`, arrays, and objects are invalid query values.
+`null`, arrays, and objects are invalid query values and cause `navigate` or `replace` to reject with `ROUTER_MALFORMED_QUERY`.
 
 ### `Route`
 
@@ -184,17 +184,20 @@ For unmatched navigation, `router:navigation-failed` is published before `router
 
 | Code | Type | Situation |
 |---|---|---|
-| `ROUTER_MALFORMED_PATH` | Operational | `navigate` or `replace` receives an invalid path or invalid query value. |
+| `ROUTER_MALFORMED_PATH` | Operational | `navigate` or `replace` receives an invalid path. |
+| `ROUTER_MALFORMED_QUERY` | Operational | `navigate` or `replace` receives a query value that is not a string, number, boolean, or `undefined`. |
 | `ROUTER_MALFORMED_PATTERN` | Operational | `registerRoutes` receives a malformed pattern, or `matchRoute` is called with one. |
 | `ROUTER_NAVIGATION_FAILED` | Operational | The adapter fails a push, replace, back, or forward operation. |
 
 `registerRoutes`, `navigate`, `replace`, `back`, and `forward` reject their Promises on failure. `matchRoute` is synchronous and throws its listed error directly.
 
-### Runtime Critical Errors
+### External Change Failures
 
-| Code | Type | Situation |
-|---|---|---|
-| `ROUTER_EXTERNAL_CHANGE_FAILED` | Critical | Processing a path from `onExternalChange` fails, including inability to replace an unmatched entry with `notFoundPath`. Reported to the Core through `reportCriticalError`, not returned by a service method. |
+A failure while resolving a path reported through `onExternalChange` (for example, the adapter refuses to replace an unmatched entry with `notFoundPath`) is handled as an ordinary Operational event inside the plugin: it is logged via `console.error` and contained, never escapes the callback or the plugin boundary, and is never returned by a service method. Escalating a single failed external-change resolution to Critical would deactivate the Router — on which most product plugins depend — over a transient, recoverable event.
+
+The sole exception is the condition defined in the Router Adapter Contract: an adapter error carrying `detail.fatal === true`, meaning the underlying navigation technology itself has become entirely and unrecoverably unusable. Only an adapter error with this flag — from any of the six adapter primitives, including a failure delivered indirectly through the `onExternalChange` error path — is reported to the Core as a Critical error (`ROUTER_EXTERNAL_CHANGE_FAILED`) through `reportCriticalError`. Every other adapter error, regardless of which primitive produced it, is Operational only and must not trigger a Critical report.
+
+A failure of the initial `onExternalChange` subscription while the service is being constructed is a Startup Error: it happens during preparation, so the plugin rejects preparation with the structured adapter error and never reports it as Critical.
 
 ### Startup And Adapter Errors
 
@@ -249,6 +252,8 @@ Every Router adapter must implement exactly these shared methods:
 - `goBack`
 - `goForward`
 - `onExternalChange`
+
+Any of these six methods must set `detail.fatal: true` on its returned Bonyan error when the underlying navigation technology becomes entirely and unrecoverably unusable, per the Router Adapter Contract in `imp/requirements.md`; this is the only condition that triggers a Critical report to the Core.
 
 ## Business Rules
 
