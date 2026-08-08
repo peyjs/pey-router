@@ -1,5 +1,10 @@
 # pey.router
 
+[![AI](https://img.shields.io/badge/Built%20with-AI-blueviolet)](#)
+[![version](https://img.shields.io/badge/version-1.0.0-blue.svg)](#)
+[![license](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+[![Bonyan Architecture](https://img.shields.io/badge/bonyan-0.11-56c3bf)](https://github.com/barnevis/bonyan)
+
 ## Purpose
 
 `pey.router` provides client-side navigation, route registration, route matching, and current-route state through a replaceable Router adapter. It is an infrastructure plugin for Bonyan architecture `0.11`.
