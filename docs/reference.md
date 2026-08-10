@@ -69,6 +69,8 @@ await router.replace('/accounts/42', {
 });
 ```
 
+There is intentionally no `replaceState` option on `navigate`. A caller that wants replace behavior calls `replace` directly — having two ways to trigger the same outcome was removed to keep the API surface minimal. `replace` is kept as a separate method because it is the only operation that replaces the current history entry; `navigate` never replaces, so there is no overlap between the two.
+
 ### `back`
 
 Requests movement to the previous history entry. It is a no-op when no previous entry exists. Route resolution occurs when the adapter reports the resulting path through `onExternalChange`.
@@ -114,6 +116,20 @@ const match = router.matchRoute('/accounts/:id', '/accounts/42?tab=details');
 ```
 
 A valid non-match returns `null`. A malformed pattern throws `ROUTER_MALFORMED_PATTERN` synchronously.
+
+## Route Registration
+
+Route patterns are not known to this plugin in advance. Any plugin that owns one or more routes (typically product plugins, but not limited to them) must declare `pey.router.service` as a dependency in its own manifest — this is the standard Bonyan dependency mechanism, not a special exception granted to Router — and call `registerRoutes` with its patterns during its own local activation, after the Core has bound its declared dependencies. It cannot be called during preparation: no plugin holds any bound service reference during preparation, regardless of whether the target service belongs to an infrastructure or application plugin.
+
+**Known limitation, explicitly deferred:** this version does not track which plugin owns which registered pattern, and does not remove patterns if the owning plugin is later deactivated (e.g. via `core:plugin-failed` or a critical-error cascade). A route left registered by a now-inactive plugin will still be treated as "matched" by the router even though nothing can serve it. This is a UX gap, not a lifecycle-safety gap: any stale reference to the deactivated plugin's own service already returns the standard `unavailable` error to its caller regardless of what the Router reports, so no unsafe or undefined behavior results — a consumer just reaches a route that reports as valid but whose underlying service call fails cleanly. Addressing this at the routing level (e.g. an `unregisterRoutes` method, or automatic cleanup tied to plugin deactivation) is left for a future version and is not required for the first implementation.
+
+## Route Pattern Syntax
+
+The `:paramName` syntax (e.g. `/accounts/:id`) is not an example — it is the fixed, mandatory convention for declaring path parameters in a route pattern across this entire project. Every pattern passed to `registerRoutes` or `matchRoute`, and the `pattern` field of `Route`, must all follow this same syntax. No alternative pattern syntax is permitted unless a future MINOR version of this plugin explicitly extends the convention.
+
+- **Regex patterns are rejected** because a regex can express path shapes no fixed segment syntax can describe, which would break the guarantee that every registered pattern is written in the same predictable, declarative form; it would also force the matching utility and every future adapter target to embed regex semantics — with all their escaping and ambiguity — for no benefit this project needs.
+- **`{param}` braces are rejected** because the convention must be single and unambiguous: allowing a second brace-based syntax gives two different ways to declare the same parameter, forces the matcher to disambiguate between them, and opens the door for different consumers to invent different shapes for the same concept.
+- **Wildcard (`*`) patterns are rejected** because an unmatched path must remain detectable: a catch-all would swallow every path and make the `notFoundPath` sentinel fallback unreachable, contradicting the plugin's core unmatched-navigation behavior.
 
 ## Data Shapes
 
@@ -244,16 +260,36 @@ The manifest declares `adapterType: "router"`, so the project must configure a R
 }
 ```
 
-Every Router adapter must implement exactly these shared methods:
+Every Router adapter must implement exactly the shared methods defined in the [Router Adapter Contract](#router-adapter-contract) below.
 
-- `getCurrentPath`
-- `pushEntry`
-- `replaceEntry`
-- `goBack`
-- `goForward`
-- `onExternalChange`
+## Router Adapter Contract
 
-Any of these six methods must set `detail.fatal: true` on its returned Bonyan error when the underlying navigation technology becomes entirely and unrecoverably unusable, per the Router Adapter Contract in `imp/requirements.md`; this is the only condition that triggers a Critical report to the Core.
+Unlike Storage, the architecture documents do not enumerate a base method set for a router adapter — this project defines it here, and any future router adapter (e.g. a Capacitor or Tauri navigation adapter) must implement this same set identically, so swapping the active adapter remains a configuration-only change.
+
+### Adapter layer (raw, technology-facing, no decisions)
+
+Required primitives, named for this project's contract:
+
+- **`getCurrentPath`** — params: none. Returns: the current raw path as a string. Errors: standard Bonyan error if the underlying technology cannot report a current path.
+- **`pushEntry`** — params: a raw path string. Returns: void. Errors: standard Bonyan error if the underlying technology refuses or fails the operation (e.g. a browser-imposed restriction on history manipulation).
+- **`replaceEntry`** — params: a raw path string. Returns: void. Errors: same as `pushEntry`.
+- **`goBack`** — params: none. Returns: void. Errors: standard Bonyan error only for an unexpected underlying failure; moving back with no previous entry is not an error, it is a no-op.
+- **`goForward`** — params: none. Returns: void. Errors: same as `goBack`, and moving forward with no next entry is likewise a no-op, not an error.
+- **`onExternalChange`** — params: a callback function with the fixed signature `(rawPath: string) => void`. This is the single, uniform mechanism for reporting any path change whose result is not known synchronously from the triggering call — this includes both a call to `goBack`/`goForward` and any navigation not initiated through this adapter at all (e.g. the browser's own back/forward buttons). On the web target, both cases fire through the same underlying `popstate` mechanism and are not distinguishable from each other, so the adapter must not attempt to treat them differently. The adapter must invoke this callback exactly once for each `goBack`/`goForward` call that actually results in a path change, and must not invoke it when `goBack`/`goForward` is a no-op (no previous/next entry, so the path does not change). `pushEntry`/`replaceEntry` are the only two operations whose result is known synchronously from the call itself, so they never trigger this callback. Every implementation of this adapter must call the callback with exactly this single-argument shape — no additional arguments, no wrapping object. Returns: an unsubscribe function taking no parameters and returning void. Errors: standard Bonyan error if the underlying technology offers no way to observe these changes.
+
+The adapter converts any raw failure from the underlying technology into the standard Bonyan error structure before it leaves the adapter. The adapter has no concept of "route patterns," "matching," or "not found" — those are decisions and belong entirely to the plugin layer.
+
+### Signaling an unrecoverable adapter failure
+
+Any of the six adapter primitives above may fail with the standard Bonyan error structure. In the ordinary case, this reflects a single failed operation (e.g. one blocked `pushEntry` call) and the plugin treats it as Operational, per the handling described in the Errors Reference section. There is one distinct case the adapter contract must let the plugin detect: the underlying navigation technology itself has become entirely and unrecoverably unusable (e.g. the browser context this adapter depends on has been torn down), as opposed to one operation failing. To signal this specific case, the adapter sets `detail.fatal: true` on the standard Bonyan error object it returns from whichever primitive surfaced the failure. The plugin treats any adapter error carrying `detail.fatal === true` — from any of the six primitives, including a failure delivered indirectly through the `onExternalChange` error path — as the sole trigger for reporting a Critical error to the Core. Every other adapter error, regardless of which primitive produced it, is Operational only and must not trigger a Critical report.
+
+### Plugin layer (orchestration and decisions)
+
+Owns all decision logic, built on top of the adapter's raw primitives. This includes: maintaining the registry of patterns supplied via `registerRoutes`, matching a raw path against that registry (using the same standalone matching utility exposed as `matchRoute`), parsing query strings, deciding when a path is unmatched, and executing the `notFoundPath` fallback (including which events to publish and in what order). The plugin relies on `onExternalChange` as its sole signal for any path change it did not learn synchronously — including one it caused itself via `goBack`/`goForward` — and resolves and publishes `router:changed` (or the notFoundPath fallback) from that single signal, rather than trying to separately track the outcome of its own `goBack`/`goForward` calls. None of this decision logic belongs in the adapter — it must behave identically regardless of which navigation adapter is active.
+
+### Test replaceability
+
+The adapter must be replaceable in tests with a simple in-memory implementation of the same primitives (`getCurrentPath`, `pushEntry`, `replaceEntry`, `goBack`, `goForward`, `onExternalChange`), so the plugin's resolution, registration, and fallback logic can be tested without a real browser environment.
 
 ## Business Rules
 
