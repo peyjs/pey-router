@@ -2,6 +2,16 @@
 
 All notable changes to `pey.router` are documented in this file. The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [1.1.0] - 2026-10-30
+
+### Fixed
+
+- `registerRoutes` now rejects a batch containing a pattern equal to the configured `notFoundPath` with `ROUTER_MALFORMED_PATTERN`, without partial registration. Previously such a pattern was accepted and could later rematch the not-found sentinel, flipping its `isNotFound` flag to `false` and contradicting the documented terminal-sentinel rule. The standalone `matchRoute` utility is unchanged and still matches syntactically.
+
+### Changed
+
+- Documented that an unmatched `navigate`/`replace` fallback drops the requested `options.query` values: the fallback URL is the bare `notFoundPath`. This documents existing behavior; no code change.
+
 ## [1.0.0] - 2026-08-08
 
 Initial release of `pey.router`, an infrastructure plugin for Bonyan architecture `0.11` providing client-side navigation, route registration, route matching, and current-route state through a replaceable Router adapter.

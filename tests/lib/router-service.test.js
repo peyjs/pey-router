@@ -103,6 +103,43 @@ test('should_reject_promise_when_register_routes_receives_malformed_pattern', as
   ]);
 });
 
+test('should_reject_not_found_path_pattern_as_reserved_without_partial_registration', async () => {
+  const { adapter, events, service } = createService('/accounts');
+
+  await service.registerRoutes(['/accounts']);
+  await assert.rejects(service.registerRoutes(['/other', '/not-found']), {
+    code: 'ROUTER_MALFORMED_PATTERN',
+  });
+  events.length = 0;
+  await service.navigate('/other');
+
+  assert.equal(adapter.getCurrentPath(), '/not-found');
+  assert.equal(service.getCurrentRoute().isNotFound, true);
+});
+
+test('should_keep_current_route_not_found_when_navigating_to_the_sentinel_path', async () => {
+  const { events, service } = createService();
+  await service.registerRoutes(['/accounts']);
+  events.length = 0;
+
+  await service.navigate('/not-found');
+
+  assert.equal(service.getCurrentRoute().isNotFound, true);
+  assert.deepEqual(events, [
+    {
+      type: 'router:navigation-failed',
+      data: { path: '/not-found', reason: NAVIGATION_FAILURE_REASONS.ROUTE_NOT_FOUND },
+    },
+    { type: 'router:changed', data: { path: '/not-found' } },
+  ]);
+});
+
+test('should_still_match_sentinel_path_through_standalone_match_route', () => {
+  const { service } = createService();
+
+  assert.deepEqual(service.matchRoute('/not-found', '/not-found'), { params: {} });
+});
+
 test('should_publish_changed_when_registration_resolves_not_found_route', async () => {
   const { events, service } = createService('/accounts/42');
 
@@ -202,7 +239,9 @@ test('should_fallback_and_publish_events_when_navigation_is_unmatched', async ()
 
 test('should_not_rematch_not_found_sentinel_when_sentinel_is_registered', async () => {
   const { events, service } = createService();
-  await service.registerRoutes(['/not-found']);
+  await assert.rejects(service.registerRoutes(['/not-found']), {
+    code: 'ROUTER_MALFORMED_PATTERN',
+  });
   events.length = 0;
 
   await service.navigate('/missing');

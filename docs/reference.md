@@ -29,7 +29,7 @@ The plugin provides `pey.router.service`. A consuming plugin must declare this e
 
 ### `registerRoutes`
 
-Registers route patterns cumulatively. Call it during the consuming plugin's local activation, after dependency binding. The complete batch is rejected without partial registration if any pattern is malformed.
+Registers route patterns cumulatively. Call it during the consuming plugin's local activation, after dependency binding. The complete batch is rejected without partial registration if any pattern is malformed or if any pattern equals the configured `notFoundPath` (`ROUTER_MALFORMED_PATTERN`): the not-found path is a reserved terminal sentinel and can never be a routable pattern.
 
 ```js
 export async function activate(services) {
@@ -57,7 +57,7 @@ await router.navigate('/accounts/42', {
 });
 ```
 
-If the path matches no registered pattern, the Promise still resolves successfully after the router falls back to `notFoundPath`.
+If the path matches no registered pattern, the Promise still resolves successfully after the router falls back to `notFoundPath`. The fallback URL is the bare `notFoundPath`: any query values the caller passed in `options.query` are dropped, and no query data reaches the route or the URL.
 
 ### `replace`
 
@@ -202,7 +202,7 @@ For unmatched navigation, `router:navigation-failed` is published before `router
 |---|---|---|
 | `ROUTER_MALFORMED_PATH` | Operational | `navigate` or `replace` receives an invalid path. |
 | `ROUTER_MALFORMED_QUERY` | Operational | `navigate` or `replace` receives a query value that is not a string, number, boolean, or `undefined`. |
-| `ROUTER_MALFORMED_PATTERN` | Operational | `registerRoutes` receives a malformed pattern, or `matchRoute` is called with one. |
+| `ROUTER_MALFORMED_PATTERN` | Operational | `registerRoutes` receives a malformed pattern or the reserved `notFoundPath`, or `matchRoute` is called with a malformed pattern. |
 | `ROUTER_NAVIGATION_FAILED` | Operational | The adapter fails a push, replace, back, or forward operation. |
 
 `registerRoutes`, `navigate`, `replace`, `back`, and `forward` reject their Promises on failure. `matchRoute` is synchronous and throws its listed error directly.
@@ -294,11 +294,11 @@ The adapter must be replaceable in tests with a simple in-memory implementation 
 ## Business Rules
 
 - Route parameters use the fixed `:paramName` segment syntax.
-- Registration is cumulative, duplicate patterns are ignored, and a malformed batch causes no partial mutation.
+- Registration is cumulative, duplicate patterns are ignored, and a malformed or reserved batch causes no partial mutation.
 - Registered patterns and all service-facing paths are relative to `basePath`.
 - Paths read from outside `basePath` use the not-found fallback.
-- `notFoundPath` is a terminal sentinel; it is never rematched against registered patterns.
-- Unmatched navigation is a routing outcome, not a caller-facing operational error.
+- `notFoundPath` is a terminal sentinel; it is never rematched against registered patterns, and registering a pattern equal to it is rejected (`ROUTER_MALFORMED_PATTERN`).
+- Unmatched navigation is a routing outcome, not a caller-facing operational error; its fallback drops the requested query values.
 - Push and replace are resolved synchronously from their adapter calls; back, forward, and external navigation are resolved only from `onExternalChange`.
 - A successful back or forward path change produces exactly one external-change notification; a no-op produces none.
 - Query values are available through `getCurrentRoute`, never through the Event Bus.
