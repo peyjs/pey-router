@@ -244,7 +244,10 @@ Both values must be valid absolute paths.
 
 ## Adapter Selection
 
-The manifest declares `adapterType: "router"`, so the project must configure a Router adapter in `bootstrap.json`. The included web implementation is `BrowserHistoryAdapter`.
+The manifest declares `adapterType: "router"`, so the project must configure a Router adapter in `bootstrap.json`. Two web implementations are included:
+
+- **`BrowserHistoryAdapter`** — keeps the path in the real URL path (`/docs/intro`). Requires a server-side SPA fallback so deep links resolve.
+- **`HashHistoryAdapter`** — keeps the path in the URL fragment (`/#/docs/intro`). Works on any static host without server rewrite rules, including GitHub Pages. Programmatic navigation goes through the History API, so `pushEntry`/`replaceEntry` fire no `hashchange`; only externally reached fragment changes notify the service. Note that the fragment carries the configured `basePath` (e.g. `/#/app/docs`), consistent with the service stripping it on read.
 
 ```json
 {

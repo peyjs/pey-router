@@ -104,6 +104,32 @@ test('should_preserve_safe_metadata_when_structured_adapter_error_is_normalized'
   );
 });
 
+test('should_load_builtin_browser_adapter_when_default_loader_is_used', async () => {
+  const adapter = await loadRouterAdapter('BrowserHistoryAdapter', {
+    host: {
+      location: { pathname: '/docs', search: '' },
+      history: { pushState() {}, replaceState() {}, back() {}, forward() {} },
+      addEventListener() {},
+      removeEventListener() {},
+    },
+  });
+
+  assert.equal(adapter.getCurrentPath(), '/docs');
+});
+
+test('should_load_builtin_hash_adapter_when_default_loader_is_used', async () => {
+  const adapter = await loadRouterAdapter('HashHistoryAdapter', {
+    host: {
+      location: { hash: '#/docs' },
+      history: { pushState() {}, replaceState() {}, back() {}, forward() {} },
+      addEventListener() {},
+      removeEventListener() {},
+    },
+  });
+
+  assert.equal(adapter.getCurrentPath(), '/docs');
+});
+
 function isStartupError(error, code) {
   return error.code === code
     && error.source === PLUGIN_NAME

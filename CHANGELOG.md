@@ -4,13 +4,18 @@ All notable changes to `pey.router` are documented in this file. The format is b
 
 ## [1.1.0] - 2026-10-30
 
-### Fixed
+### Added
 
-- `registerRoutes` now rejects a batch containing a pattern equal to the configured `notFoundPath` with `ROUTER_MALFORMED_PATTERN`, without partial registration. Previously such a pattern was accepted and could later rematch the not-found sentinel, flipping its `isNotFound` flag to `false` and contradicting the documented terminal-sentinel rule. The standalone `matchRoute` utility is unchanged and still matches syntactically.
+- `HashHistoryAdapter`, a second built-in Router adapter that keeps the path in the URL fragment (`/#/docs/intro`) so the application works on any static host without server-side SPA rewrite rules. Programmatic navigation goes through the History API, so push/replace fire no `hashchange`; only externally reached fragment changes notify the service. Selected via `"adapters": { "router": "HashHistoryAdapter" }`.
 
 ### Changed
 
 - Documented that an unmatched `navigate`/`replace` fallback drops the requested `options.query` values: the fallback URL is the bare `notFoundPath`. This documents existing behavior; no code change.
+
+### Fixed
+
+- `registerRoutes` now rejects a batch containing a pattern equal to the configured `notFoundPath` with `ROUTER_MALFORMED_PATTERN`, without partial registration. Previously such a pattern was accepted and could later rematch the not-found sentinel, flipping its `isNotFound` flag to `false` and contradicting the documented terminal-sentinel rule. The standalone `matchRoute` utility is unchanged and still matches syntactically.
+
 
 ## [1.0.0] - 2026-08-08
 
